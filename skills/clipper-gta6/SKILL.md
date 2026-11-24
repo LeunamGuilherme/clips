@@ -19,6 +19,8 @@ Fale com a pessoa em português simples. Ela não é programadora: diga o que es
   e junte com o corte usando o filtro `concat` (`[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1`).
 - **SEM texto nenhum no vídeo**: nem legenda palavra por palavra, nem título de gancho. O vídeo é só imagem e áudio.
 - Layout: câmera do streamer em cima, jogo embaixo, vertical 1080×1920.
+- **Câmera com qualidade melhorada**: o `filtro` do `cortar.py` passa a faixa da câmera por escala lanczos +
+  nitidez (`unsharp`) + contraste/saturação leves (`eq`). Não remova esses filtros da faixa `[cam]`.
 - O `scripts/cortar.py` já implementa isso: não existe mais `escrever_ass` nem filtro `ass=` — nenhum texto é
   gravado no vídeo. Não reintroduza texto sem a dona pedir.
 - Mesmo sem legenda, os palavrões continuam censurados no áudio com um bip curto.

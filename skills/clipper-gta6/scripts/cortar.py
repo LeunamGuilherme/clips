@@ -100,7 +100,9 @@ def filtro(W, H, rosto):
     cy = min(max(fy + fh * 0.65 - ch / 2, 0), H - ch)
     gw = min(W, H * L / JOGO_H)
     gx = (W - gw) / 2
-    return (f"[0:v]crop={_par(cw)}:{_par(ch)}:{_par(cx)}:{_par(cy)},scale={L}:{CAM_H},setsar=1[cam];"
+    # Melhoria da câmera (preferência da dona): escala boa (lanczos) + nitidez + contraste/saturation leves.
+    melhora = f"scale={L}:{CAM_H}:flags=lanczos,unsharp=7:7:0.9:7:7:0.4,eq=contrast=1.04:saturation=1.08"
+    return (f"[0:v]crop={_par(cw)}:{_par(ch)}:{_par(cx)}:{_par(cy)},{melhora},setsar=1[cam];"
             f"[0:v]crop={_par(gw)}:{_par(H)}:{_par(gx)}:0,scale={L}:{JOGO_H},setsar=1[jogo];"
             f"[cam][jogo]vstack=inputs=2,format=yuv420p[v]")
 
