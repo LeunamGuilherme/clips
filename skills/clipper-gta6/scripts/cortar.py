@@ -1,6 +1,6 @@
 """Passos 3 e 4: junta as notas que a IA deu, fica com os melhores e monta os cortes verticais.
 
-Cada corte: câmera do streamer em cima, jogo embaixo, título de gancho, legenda palavra por palavra
+Cada corte: câmera do streamer em cima, jogo embaixo, SEM texto nenhum no vídeo (preferência da dona)
 e um .txt com a legenda do post e as hashtags.
 """
 import json
@@ -90,7 +90,7 @@ def _par(v):
 def filtro(W, H, rosto):
     if rosto is None:  # sem câmera: jogo inteiro no meio, fundo desfocado
         return ("[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:3[bg];"
-                "[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p,ass=legenda.ass[v]")
+                "[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[v]")
     fx, fy, fw, fh = rosto
     cw = min(W, max(fw * 2.4, 200))
     ch = cw * CAM_H / L
@@ -102,20 +102,11 @@ def filtro(W, H, rosto):
     gx = (W - gw) / 2
     return (f"[0:v]crop={_par(cw)}:{_par(ch)}:{_par(cx)}:{_par(cy)},scale={L}:{CAM_H},setsar=1[cam];"
             f"[0:v]crop={_par(gw)}:{_par(H)}:{_par(gx)}:0,scale={L}:{JOGO_H},setsar=1[jogo];"
-            f"[cam][jogo]vstack=inputs=2,format=yuv420p,ass=legenda.ass[v]")
+            f"[cam][jogo]vstack=inputs=2,format=yuv420p[v]")
 
 
-# ================================================================ legenda
-def _ass_tempo(t):
-    t = max(0.0, t)
-    return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
-
-
-def _limpo(txt):
-    return txt.replace("{", "(").replace("}", ")").replace("\\", "/").strip()
-
-
-# Palavrões são censurados: na legenda viram "PI" e no áudio um bip cobre a palavra.
+# ================================================================ censura de palavrões
+# Palavrões são censurados: no áudio um bip cobre a palavra.
 PALAVROES = {"caralho", "porra", "puta", "puto", "cu", "cú", "merda", "bosta", "cacete",
              "fuder", "fudeu", "fude", "fudei", "fode", "fodeu", "fodendo", "fudendo",
              "viado", "desgraçado", "desgraça", "piranha", "arrombado", "corno", "cuzão"}
@@ -131,41 +122,12 @@ def eh_palavrao(w):
     return n in PALAVROES or any(n.startswith(p) and len(n) <= len(p) + 2 for p in PALAVROES if len(p) > 2)
 
 
-def censurar(palavras):
-    return [(s, e, "pi" if eh_palavrao(w) else w) for s, e, w in palavras]
-
-
 def palavras_do_trecho(video, idioma, modelo="small"):
     from faster_whisper import WhisperModel
     m = WhisperModel(modelo, device="cpu", compute_type="int8")
     segs, _ = m.transcribe(str(video), language=idioma, word_timestamps=True, vad_filter=True,
                            condition_on_previous_text=False)
     return [(w.start, w.end, w.word.strip()) for s in segs for w in (s.words or []) if w.word.strip()]
-
-
-def escrever_ass(caminho, titulo, palavras, dur, com_camera):
-    y_titulo = CAM_H if com_camera else 520
-    y_leg = CAM_H - 60 if com_camera else 1480
-    linhas = [
-        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {L}", f"PlayResY: {A}", "WrapStyle: 0", "",
-        "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
-        "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
-        "MarginL, MarginR, MarginV, Encoding",
-        "Style: Gancho,Arial,58,&H00FFFFFF,&H00FFFFFF,&H00000000,&H000000FF,1,0,0,0,100,100,0,0,3,18,0,5,60,60,0,1",
-        "Style: Leg,Arial,84,&H00FFFFFF,&H00FFFFFF,&H00000000,&H000000FF,1,0,0,0,100,100,0,0,1,7,3,5,40,40,0,1",
-        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-        f"Dialogue: 1,{_ass_tempo(0)},{_ass_tempo(dur)},Gancho,,0,0,0,,{{\\pos(540,{y_titulo})}}{_limpo(titulo).upper()}",
-    ]
-    grupos = [palavras[i:i + 3] for i in range(0, len(palavras), 3)]
-    for g, grupo in enumerate(grupos):
-        prox = grupos[g + 1][0][0] if g + 1 < len(grupos) else dur
-        for k, (s, e, _) in enumerate(grupo):
-            fim = grupo[k + 1][0] if k + 1 < len(grupo) else (prox if prox - e < 0.6 else e + 0.25)
-            txt = " ".join(("{\\c&H00E5FF&}" if j == k else "{\\c&HFFFFFF&}") + _limpo(w).upper()
-                           for j, (_, _, w) in enumerate(grupo))
-            linhas.append(f"Dialogue: 0,{_ass_tempo(s)},{_ass_tempo(fim)},Leg,,0,0,0,,{{\\pos(540,{y_leg})}}{txt}")
-    Path(caminho).write_text("\n".join(linhas) + "\n", encoding="utf-8")
 
 
 # ================================================================ baixar só o pedaço
@@ -226,11 +188,9 @@ def fazer(pasta, modelo_legenda="small"):
         print("      procurando a câmera do streamer…")
         W, H, rosto = achar_camera(trecho)
         print("      câmera achada" if rosto is not None else "      sem câmera: jogo inteiro com fundo desfocado")
-        print("      legenda palavra por palavra…")
+        print("      escutando pra censurar palavrões…")
         palavras = palavras_do_trecho(trecho, idioma, modelo_legenda)
         bips = [(max(0, s - 0.05), e + 0.20) for s, e, w in palavras if eh_palavrao(w)]
-        palavras = censurar(palavras)
-        escrever_ass(tdir / "legenda.ass", m.get("titulo", ""), palavras, dur, rosto is not None)
         fc = filtro(W, H, rosto)
         mapa_a = "0:a?"
         if bips:

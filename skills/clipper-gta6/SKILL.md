@@ -1,6 +1,6 @@
 ---
 name: clipper-gta6
-description: Clipper do GTA 6 — transforma lives longas de streamers (YouTube, Twitch ou Kick) em cortes verticais prontos pra postar, com a câmera do streamer em cima, o jogo embaixo, a mesma foto de capa no início de todos os vídeos e o título de gancho só nos 3 primeiros segundos do gameplay (sem legenda falada). Use quando a pessoa disser "monta o clipper do GTA 6", "instala essa skill", "corta essa live", "faz cortes dessa live", "acha as maiores lives de GTA 6 de hoje e corta", ou colar um link de live pedindo cortes.
+description: Clipper do GTA 6 — transforma lives longas de streamers (YouTube, Twitch ou Kick) em cortes verticais prontos pra postar, com a câmera do streamer em cima, o jogo embaixo, a mesma foto de capa no início de todos os vídeos e SEM texto nenhum no vídeo (nem legenda, nem título). Use quando a pessoa disser "monta o clipper do GTA 6", "instala essa skill", "corta essa live", "faz cortes dessa live", "acha as maiores lives de GTA 6 de hoje e corta", ou colar um link de live pedindo cortes.
 ---
 
 # Clipper do GTA 6
@@ -17,12 +17,10 @@ Fale com a pessoa em português simples. Ela não é programadora: diga o que es
   vídeos fica igual no perfil do TikTok. Como montar: gere um clipe da foto (`ffmpeg -loop 1 -i capa.jfif
   -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 -t 1.5 -vf scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,format=yuv420p -r 30 -c:v libx264 -crf 18 -c:a aac -shortest intro.mp4`)
   e junte com o corte usando o filtro `concat` (`[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1`).
-- **SEM legenda palavra por palavra** no vídeo. Nunca gerar a legenda falada.
-- **O título de gancho aparece só nos primeiros 3 segundos** do trecho de gameplay, depois some.
+- **SEM texto nenhum no vídeo**: nem legenda palavra por palavra, nem título de gancho. O vídeo é só imagem e áudio.
 - Layout: câmera do streamer em cima, jogo embaixo, vertical 1080×1920.
-- O `escrever_ass` do `scripts/cortar.py` já implementa "sem legenda + título por 3s". Se o script ainda gerar
-  legenda ou deixar o título o vídeo inteiro, corrija `escrever_ass`: apague os eventos do estilo `Leg` e faça o
-  evento `Gancho` terminar em `min(3.0, dur)` em vez de `dur`.
+- O `scripts/cortar.py` já implementa isso: não existe mais `escrever_ass` nem filtro `ass=` — nenhum texto é
+  gravado no vídeo. Não reintroduza texto sem a dona pedir.
 - Mesmo sem legenda, os palavrões continuam censurados no áudio com um bip curto.
 
 ## Como rodar os comandos
@@ -110,8 +108,9 @@ Formato de `momentos/bloco_NN.json`:
 ]
 ```
 
-- `titulo`: o gancho que aparece nos 3 primeiros segundos do gameplay. Curto (até ~45 letras), em MAIÚSCULAS, na
-  língua da live, sem spoiler do final. Use o nome ou apelido do streamer quando ajudar ("CASIMIRO NÃO ACREDITOU…").
+- `titulo`: nome interno do corte, usado na primeira linha do `.txt` do post (não aparece no vídeo — o vídeo não
+  tem texto). Curto (até ~45 letras), em MAIÚSCULAS, na língua da live, sem spoiler do final. Use o nome ou
+  apelido do streamer quando ajudar ("CASIMIRO NÃO ACREDITOU…").
 - `post`: legenda do post, 1–2 frases + 4 a 6 hashtags (sempre `#gta6`).
 
 ### 2.3 Ficar com os melhores
@@ -121,7 +120,7 @@ os 3 melhores: …".
 
 ### 2.4 Montar os cortes
 `clip.py fazer NOME-DA-LIVE`. Ele baixa só os minutos escolhidos, acha a câmera do streamer (a caixinha com o rosto)
-e monta o vídeo 1080×1920: câmera em cima, jogo embaixo, título de gancho só nos 3 primeiros segundos, sem legenda.
+e monta o vídeo 1080×1920: câmera em cima, jogo embaixo, sem texto nenhum.
 Se não achar câmera, usa o jogo inteiro no meio com fundo desfocado.
 
 Depois de montar cada corte, **junte a foto de capa no início** (veja "Formato dos cortes" acima) antes de entregar.
